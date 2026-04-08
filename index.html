@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Kindle Notes Viewer</title>
+	<style>
+		:root {
+			--paper: #f3ecdf;
+			--paper-strong: #ede2d0;
+			--ink: #1f1913;
+			--ink-soft: #584b3d;
+			--accent: #b8572f;
+			--accent-soft: #d67447;
+			--border: #cdbca3;
+			--card: #faf6ed;
+			--shadow: rgba(55, 38, 20, 0.14);
+			--mono: #382f24;
+		}
+
+		body.theme-kindle {
+			--paper: #fbfbfb;
+			--paper-strong: #f2f2f2;
+			--ink: #111111;
+			--ink-soft: #333333;
+			--accent: #000000;
+			--accent-soft: #222222;
+			--border: #ababab;
+			--card: #ffffff;
+			--shadow: rgba(0, 0, 0, 0.06);
+			--mono: #222222;
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			min-height: 100vh;
+			color: var(--ink);
+			font-family: "Iowan Old Style", "Book Antiqua", Palatino, "Palatino Linotype", Georgia, serif;
+			background:
+				radial-gradient(circle at 16% 12%, rgba(184, 87, 47, 0.12), transparent 34%),
+				radial-gradient(circle at 84% 18%, rgba(88, 75, 61, 0.09), transparent 28%),
+				linear-gradient(170deg, var(--paper), var(--paper-strong));
+			padding: 1rem;
+		}
+
+		.shell {
+			max-width: 1050px;
+			margin: 0 auto;
+			border: 1px solid var(--border);
+			border-radius: 24px;
+			background: linear-gradient(135deg, var(--card), var(--paper));
+			box-shadow: 0 22px 36px -22px var(--shadow);
+			overflow: hidden;
+			animation: settle 520ms ease both;
+		}
+
+		.topbar {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 1rem;
+			padding: 1rem 1.2rem;
+			border-bottom: 1px solid var(--border);
+			background: linear-gradient(145deg, rgba(255, 255, 255, 0.4), rgba(225, 206, 178, 0.24));
+		}
+
+		.brand {
+			font-size: 1.05rem;
+			letter-spacing: 0.11em;
+			text-transform: uppercase;
+			color: var(--mono);
+			margin: 0;
+		}
+
+		.theme-switch {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.4rem;
+			padding: 0.2rem;
+			border: 1px solid var(--border);
+			border-radius: 999px;
+			background: var(--card);
+		}
+
+		.theme-switch button {
+			border: 0;
+			background: transparent;
+			color: var(--ink-soft);
+			border-radius: 999px;
+			font-size: 0.86rem;
+			padding: 0.35rem 0.8rem;
+			cursor: pointer;
+			font-family: inherit;
+		}
+
+		.theme-switch button.active {
+			color: #fff;
+			background: var(--accent);
+		}
+
+		.content {
+			padding: 1.15rem;
+			display: grid;
+			gap: 1rem;
+		}
+
+		.panel {
+			border: 1px solid var(--border);
+			border-radius: 14px;
+			background: var(--card);
+			padding: 1rem;
+			animation: riseIn 380ms ease both;
+		}
+
+		.panel h1,
+		.panel h2,
+		.panel h3 {
+			font-family: "Goudy Old Style", Garamond, serif;
+			margin-top: 0;
+			margin-bottom: 0.45rem;
+			letter-spacing: 0.02em;
+		}
+
+		.muted {
+			margin-top: 0;
+			color: var(--ink-soft);
+			line-height: 1.45;
+			font-size: 0.96rem;
+		}
+
+		.source-actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.75rem;
+			margin: 0.9rem 0;
+		}
+
+		.btn {
+			border: 1px solid var(--border);
+			border-radius: 999px;
+			background: linear-gradient(140deg, #fff, rgba(243, 236, 223, 0.9));
+			color: var(--ink);
+			font-family: inherit;
+			font-weight: 600;
+			letter-spacing: 0.02em;
+			cursor: pointer;
+			padding: 0.54rem 1rem;
+			transition: transform 120ms ease, box-shadow 120ms ease;
+		}
+
+		.btn:hover {
+			transform: translateY(-1px);
+			box-shadow: 0 6px 12px -10px var(--shadow);
+		}
+
+		.btn:active {
+			transform: translateY(0);
+		}
+
+		.btn-primary {
+			border-color: var(--accent-soft);
+			background: linear-gradient(140deg, var(--accent-soft), var(--accent));
+			color: #fff;
+		}
+
+		.status {
+			margin: 0;
+			padding: 0.68rem 0.82rem;
+			border-radius: 10px;
+			border: 1px solid var(--border);
+			background: rgba(255, 255, 255, 0.35);
+			color: var(--mono);
+			line-height: 1.4;
+			font-size: 0.92rem;
+		}
+
+		.status.info {
+			border-left: 4px solid var(--accent-soft);
+		}
+
+		.status.success {
+			border-left: 4px solid #317a48;
+		}
+
+		.status.warn {
+			border-left: 4px solid #b94a22;
+		}
+
+		.summary {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+			gap: 0.55rem;
+			margin-top: 0.9rem;
+		}
+
+		.summary-item {
+			border: 1px solid var(--border);
+			border-radius: 12px;
+			padding: 0.7rem;
+			background: linear-gradient(130deg, rgba(255, 255, 255, 0.6), rgba(245, 235, 219, 0.72));
+		}
+
+		.summary-item strong {
+			font-size: 1.28rem;
+			display: block;
+			font-family: "Goudy Old Style", Garamond, serif;
+		}
+
+		.tabs {
+			display: inline-flex;
+			border: 1px solid var(--border);
+			border-radius: 999px;
+			overflow: hidden;
+			margin-bottom: 0.75rem;
+		}
+
+		.tab {
+			border: 0;
+			background: transparent;
+			color: var(--ink-soft);
+			cursor: pointer;
+			font-family: inherit;
+			font-weight: 600;
+			padding: 0.45rem 1rem;
+		}
+
+		.tab.active {
+			background: var(--accent);
+			color: #fff;
+		}
+
+		.view {
+			display: none;
+		}
+
+		.view.active {
+			display: block;
+		}
+
+		.toolbar {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.6rem;
+			margin-bottom: 0.7rem;
+		}
+
+		.toolbar-title {
+			margin: 0;
+			font-size: 1.2rem;
+			font-family: "Goudy Old Style", Garamond, serif;
+		}
+
+		.calendar {
+			display: grid;
+			grid-template-columns: repeat(7, minmax(0, 1fr));
+			gap: 0.45rem;
+		}
+
+		.weekday {
+			text-align: center;
+			font-size: 0.74rem;
+			color: var(--ink-soft);
+			text-transform: uppercase;
+			letter-spacing: 0.08em;
+			padding: 0.28rem 0;
+		}
+
+		.day-cell {
+			border: 1px solid var(--border);
+			background: #fff;
+			border-radius: 10px;
+			min-height: 78px;
+			padding: 0.45rem 0.4rem;
+			display: flex;
+			flex-direction: column;
+			justify-content: space-between;
+			cursor: pointer;
+			font-family: inherit;
+			color: var(--ink);
+			transition: transform 120ms ease, border-color 120ms ease;
+		}
+
+		.day-cell:hover {
+			transform: translateY(-1px);
+			border-color: var(--accent-soft);
+		}
+
+		.day-cell.empty {
+			background: rgba(255, 255, 255, 0.38);
+			cursor: default;
+		}
+
+		.day-cell .day-number {
+			font-weight: 700;
+			font-size: 0.95rem;
+		}
+
+		.day-cell .count {
+			font-size: 0.78rem;
+			color: var(--ink-soft);
+		}
+
+		.day-cell.has-count .count {
+			color: var(--accent);
+			font-weight: 700;
+		}
+
+		.day-cell.selected {
+			border-color: var(--accent);
+			box-shadow: inset 0 0 0 1px var(--accent);
+		}
+
+		.day-list {
+			display: grid;
+			gap: 0.7rem;
+		}
+
+		.clip {
+			border: 1px solid var(--border);
+			border-radius: 12px;
+			padding: 0.75rem;
+			background: linear-gradient(135deg, #fff, rgba(242, 232, 215, 0.6));
+			animation: riseIn 280ms ease both;
+		}
+
+		.clip-head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 0.5rem;
+			margin-bottom: 0.45rem;
+			font-size: 0.84rem;
+			color: var(--ink-soft);
+		}
+
+		.tag {
+			border: 1px solid var(--border);
+			border-radius: 999px;
+			padding: 0.12rem 0.58rem;
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			font-size: 0.68rem;
+			color: var(--mono);
+		}
+
+		.clip h3 {
+			margin: 0 0 0.28rem;
+			font-size: 1.05rem;
+		}
+
+		.clip .author {
+			margin: 0 0 0.48rem;
+			color: var(--ink-soft);
+			font-size: 0.88rem;
+		}
+
+		.clip p {
+			margin: 0;
+			line-height: 1.45;
+		}
+
+		.empty-note {
+			margin: 0;
+			border: 1px dashed var(--border);
+			border-radius: 10px;
+			padding: 0.8rem;
+			color: var(--ink-soft);
+		}
+
+		.hidden {
+			display: none;
+		}
+
+		.footer {
+			color: var(--ink-soft);
+			margin-top: 0.2rem;
+			font-size: 0.8rem;
+			text-align: center;
+		}
+
+		@keyframes settle {
+			from {
+				opacity: 0;
+				transform: translateY(8px);
+			}
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+
+		@keyframes riseIn {
+			from {
+				opacity: 0;
+				transform: translateY(6px);
+			}
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+
+		@media (max-width: 760px) {
+			body {
+				padding: 0.6rem;
+			}
+
+			.shell {
+				border-radius: 16px;
+			}
+
+			.topbar {
+				flex-direction: column;
+				align-items: flex-start;
+			}
+
+			.toolbar-title {
+				font-size: 1rem;
+			}
+
+			.day-cell {
+				min-height: 68px;
+			}
+
+			.summary {
+				grid-template-columns: 1fr;
+			}
+		}
+	</style>
+</head>
+<body class="theme-desktop">
+	<main class="shell" id="app-shell">
+		<header class="topbar">
+			<p class="brand">Kindle Notes Viewer</p>
+			<div class="theme-switch" role="group" aria-label="Display mode">
+				<button id="desktop-theme-btn" class="active" type="button">Desktop</button>
+				<button id="kindle-theme-btn" type="button">Kindle</button>
+			</div>
+		</header>
+
+		<div class="content">
+			<section class="panel">
+				<h1>Import Your Notes</h1>
+				<p class="muted">Load your My Clippings text file from your device or connect to OneDrive and search for the same file.</p>
+				<div class="source-actions">
+					<button type="button" id="load-file-btn" class="btn btn-primary">Load Local File</button>
+					<button type="button" id="load-onedrive-btn" class="btn">Load from OneDrive</button>
+					<input id="local-file-input" type="file" accept=".txt,text/plain" class="hidden" aria-hidden="true">
+				</div>
+				<p id="source-status" class="status info" aria-live="polite"></p>
+
+				<div id="summary" class="summary hidden" aria-live="polite">
+					<div class="summary-item"><strong id="summary-total">0</strong>Total entries</div>
+					<div class="summary-item"><strong id="summary-days">0</strong>Active days</div>
+					<div class="summary-item"><strong id="summary-books">0</strong>Books</div>
+				</div>
+			</section>
+
+			<section id="main-panel" class="panel hidden">
+				<div class="tabs" role="tablist" aria-label="Main views">
+					<button id="tab-month" class="tab active" type="button" role="tab" aria-selected="true">Month</button>
+					<button id="tab-day" class="tab" type="button" role="tab" aria-selected="false">Day</button>
+				</div>
+
+				<section id="month-view" class="view active" role="tabpanel">
+					<div class="toolbar">
+						<button type="button" id="month-prev" class="btn">Previous</button>
+						<h2 id="month-label" class="toolbar-title"></h2>
+						<button type="button" id="month-next" class="btn">Next</button>
+					</div>
+					<div id="month-grid" class="calendar"></div>
+				</section>
+
+				<section id="day-view" class="view" role="tabpanel">
+					<div class="toolbar">
+						<button type="button" id="day-prev" class="btn">Previous Day</button>
+						<h2 id="day-label" class="toolbar-title"></h2>
+						<button type="button" id="day-next" class="btn">Next Day</button>
+					</div>
+					<div id="day-entries" class="day-list"></div>
+				</section>
+			</section>
+		</div>
+	</main>
+
+	<script src="https://alcdn.msauth.net/browser/2.39.0/js/msal-browser.min.js" crossorigin="anonymous"></script>
+	<script src="app.js"></script>
+</body>
+</html>
